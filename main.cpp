@@ -12,7 +12,7 @@
 #include "Cone.h"
 
 #define BUFFER_SIZE 3
-#define RECORDS_NUMBER 10
+#define RECORDS_NUMBER 12
 
 using namespace std;
 
@@ -23,39 +23,22 @@ using namespace std;
  *  1 -> vector of Cones
 */
 void display_buffer_content(vector<Cone> &buffer) {
-//    for (Cone n : buffer)
-//        cout << n.radius << "\t" << n.height << endl;
-//    cout << "~~~~~~~" << endl;
-
     for (Cone n : buffer)
         cout << n.getVolume() << " ";
     cout << endl;
 }
 
-/*  uses previously opened stream and read by chunks, which size is specified in 2nd param
+/*  generates Cone objects into INPUT tape
  *
  *  params:
- *  1 -> buffer we want to fill
- *  2 -> how many records we want to read at once
- *  3 -> opened file stream
-*/
-void fill_buffer_from_file(vector<Cone> &buffer, int recordsInBuffer, std::ifstream &fileToRead) {
-
-    //display_buffer_content(buffer);
-}
-
-/*  generates Cone objects into tape A
- *
- *  params:
- *  1 -> temporary vector of freshly generated cones
- *  2 -> how many to produce and put onto a tape
- *  3 -> path to empty tape A
+ *  1 -> how many to produce and put onto a tape
+ *  2 -> path to empty INPUT tape
 */
 void generate_records(long amount, string destinationPath) {
     //DEBUG
-    float tab[10] = {1,6,2,4,3,2,4,5,6,7};
+    float tab[] = {1,6,2,4,3,2,4,5,6,7,6,5};
     vector<Cone> cones;
-    std::ofstream destinationFile(destinationPath, ios::in | ios::binary);
+    std::ofstream destinationFile(destinationPath, ios::out | ios::binary);
 
     //TODO move to Cone class
     //generate 2 parameters and push to vector, then display
@@ -76,20 +59,13 @@ void write_to_tape(std::ofstream& tape, vector<Cone> &records) {
     tape.write(reinterpret_cast<const char *>(records.data()), records.size() * sizeof(Cone));
 }
 
-
-int is_vector_sorted(vector<Cone> &v){
-    for(int i=0; i < v.size();i++){
-        if(i!=0 && v[i-1] > v[i])
-            return i;
-    }
-}
-
 int main() {
     // BASIC DECLARATIONS
     std::srand(time(0));
-    string tape_INPUT_path = "/home/miczi/ClionProjects/polyphase_sorting_by_miczi/INPUT";
-    string tape_A_path = "/home/miczi/ClionProjects/polyphase_sorting_by_miczi/A";
-    string tape_B_path = "/home/miczi/ClionProjects/polyphase_sorting_by_miczi/B";
+    const string projectPath = "/home/miczi/ClionProjects/polyphase-external-sort-edu/";
+    const string tape_INPUT_path = projectPath + "INPUT";
+    const string tape_A_path = projectPath + "A";
+    const string tape_B_path = projectPath + "B";
 
     // FILL TAPE
     generate_records(RECORDS_NUMBER, tape_INPUT_path);
@@ -97,31 +73,55 @@ int main() {
 
     // DISTRIBUTION
     vector<Cone> readBuffer(BUFFER_SIZE);
-    vector<Cone> A_Buffer(BUFFER_SIZE);
-    vector<Cone> B_uffer(BUFFER_SIZE);
+    vector<Cone> A_Buffer;
+    vector<Cone> B_Buffer;
 
     std::ifstream tapeINPUT(tape_INPUT_path, ios::in | ios::binary);
-    std::ofstream tapeA(tape_A_path, ios::in | ios::binary);
-    std::ofstream tapeB(tape_B_path, ios::in | ios::binary);
+    std::ofstream tapeA(tape_A_path, ios::out | ios::binary);
+    std::ofstream tapeB(tape_B_path, ios::out | ios::binary);
 
 
-    bool toTapeA = true;
+    bool toTapeA = true;                        // od ktorej tasmy zaczynamy
+    std::vector<Cone>* bufferToPut = &A_Buffer; // wskaznik na tasme do ktorej mamy pisac
+    Cone last = Cone(INT_MIN, INT_MIN);         // udajemy ze na tasmie A cos jest
 
-    while(tapeINPUT.read(reinterpret_cast<char *>(buffer.data()), sizeof(Cone) * BUFFER_SIZE)){ //czytaj wielkosc bufora
+    //napelnij bufor read
+    while(tapeINPUT.read(reinterpret_cast<char *>(readBuffer.data()), sizeof(Cone) * BUFFER_SIZE)){
+        //dla kazdego elementu w buforze
+        for(int readBufferIndex = 0;readBufferIndex < BUFFER_SIZE; readBufferIndex++){
+            //jesli ostatnio wstawiany element do bufora A lub B jest mniejszy od tego ktory mamy w readBuffer
+            if(last < readBuffer.at(readBufferIndex)){
+                //jesli bufor a jest pelny to zapisz najpierw na tasme i wyczysc bufror
 
+                //to wpisz do tego bufora z ktorego pochodzi last
+                bufferToPut->push_back(readBuffer.at(readBufferIndex));
+                if(bufferToPut == &A_Buffer){
+                    cout<<readBuffer.at(readBufferIndex).getVolume()<< " pushed to buffer A"<<endl;
+                } else{
+                    cout<<readBuffer.at(readBufferIndex).getVolume()<< " pushed to buffer B"<<endl;
+                }
+            } else{
+                //jesli bufor B jest pelny to zapisz najpierw na tasme i wyczysc bufror
 
+                //to wpisz to przeciwnego bufora niz ten z ktorego jest last
 
-        //w buffer mamy trzy elementy
-        std::size_t const sortedPartLength = is_vector_sorted(buffer);
-        std::vector<Cone> series(buffer.begin(), buffer.begin() + sortedPartLength);
-        toTapeA ? write_to_tape(tapeA, series) : write_to_tape(tapeB, series);
-
-        toTapeA != toTapeA;
-
-        std::vector<Cone> newSeries(buffer.begin() + sortedPartLength, buffer.end());
-
-        toTapeA ? write_to_tape(tapeA, newSeries) : write_to_tape(tapeB, newSeries);
+                toTapeA = !toTapeA;
+                bufferToPut = (toTapeA) ? &A_Buffer : &B_Buffer;
+                bufferToPut->push_back(readBuffer.at(readBufferIndex));
+                if(bufferToPut == &A_Buffer){
+                    cout<<"buffer swapped to A"<<endl;
+                    cout<<readBuffer.at(readBufferIndex).getVolume()<< " pushed to buffer A"<<endl;
+                } else{
+                    cout<<"buffer swapped to B"<<endl;
+                    cout<<readBuffer.at(readBufferIndex).getVolume()<< " pushed to buffer B"<<endl;
+                }
+            }
+            last = bufferToPut->back();//zaktualizuj ostatni element
+            cout<< "last: " << last.getVolume()<<endl;
+        }
     }
+    display_buffer_content(A_Buffer);
+    display_buffer_content(B_Buffer);
 
     tapeA.close();
     std::ifstream tapeAA(tape_A_path, ios::in | ios::binary);
