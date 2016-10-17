@@ -36,6 +36,14 @@ public:
     {
         return (radius < right.radius);
     }
+    bool operator>= (const Cone &right)
+    {
+        return (radius >= right.radius);
+    }
+    bool operator<= (const Cone &right)
+    {
+        return (radius <= right.radius);
+    }
 };
 
 
