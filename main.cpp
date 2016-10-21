@@ -12,10 +12,52 @@
 #include "Cone.h"
 
 #define BUFFER_SIZE 3
-#define RECORDS_NUMBER 18
+#define RECORDS_NUMBER 20
+#define A true
+#define B false
 
 using namespace std;
 vector<Cone>::iterator aIterator,bIterator;
+
+
+class FibonacciGenerator{
+    unsigned int fib1 = 1;
+    unsigned int fib2 = 1;
+    unsigned int newFib = 1;
+
+public:
+    FibonacciGenerator(){
+    }
+
+    unsigned int limitForA(){
+        return fib2;
+    }
+    unsigned int limitForB(){
+        return fib1;
+    }
+
+    unsigned int next(){
+        newFib = fib1+ fib2;
+        fib1 = fib2;
+        fib2 = newFib;
+        return newFib;
+    }
+
+    unsigned int nextForA(){
+        newFib = fib1 + fib2;
+        fib1 = fib2;
+        fib2 = newFib;
+
+        return newFib;
+    }
+
+    unsigned int nextForB(){
+        return fib1;
+    }
+
+}fibonacciGenerator;
+
+
 
 /*  displays argument to the console
  *  each buffer element is a Cone
@@ -37,7 +79,7 @@ void display_buffer_content(vector<Cone> &buffer) {
 */
 void generate_records(long amount, string destinationPath) {
     //DEBUG
-    float tab[] = {1,6,2,8,7,9,4,5,6,7,6,5,1,2,3,4,3,2};
+    float tab[] = {1,6,2,8,7,9,4,5,6,7,6,5,1,2,3,4,3,2,1,0};
     vector<Cone> cones;
     std::ofstream destinationFile(destinationPath, ios::out | ios::binary);
 
@@ -73,35 +115,78 @@ void ustawLastAiB(Cone &lastOnA, Cone& lastOnB, vector<Cone> &A_Buffer, vector<C
 
 }
 
-class FibonacciGenerator{
-    unsigned int fib1 = 1;
-    unsigned int fib2 = 1;
-    unsigned int newFib = 1;
 
-public:
-    FibonacciGenerator(){
+
+Cone ostatni_z_biezacego_bufora(bool whichTape,vector<Cone> bufferA, vector<Cone> bufferB) {
+    if(whichTape == A && !bufferA.empty())
+        return bufferA.back();
+    else if(whichTape == B && !bufferB.empty())
+        return bufferB.back();
+    return Cone(INT_MIN,INT_MIN);
+}
+
+void wstaw_do_bufora_tasmy(bool whichTape, vector<Cone>& bufferA, vector<Cone>& bufferB,Cone newElement) {
+    string which;
+
+    if(whichTape == A){
+        bufferA.push_back(newElement);  which = "A";
+    }else if(whichTape == B){
+        bufferB.push_back(newElement);  which = "B";
+    }
+    cout<< "wpisano " << newElement.getVolume()<<" do bufora " << which << endl;
+}
+
+bool fib_pozwala(bool whichTape, unsigned int seriesOnA, unsigned int seriesOnB) {
+    unsigned int series,limit;
+    if(whichTape==A){
+        series = seriesOnA;
+        limit = fibonacciGenerator.limitForA();
+    }else if(whichTape==B){
+        series = seriesOnB;
+        limit = fibonacciGenerator.limitForB();
     }
 
-    unsigned int limitForA(){
-        return fib2;
-    }
-    unsigned int limitForB(){
-        return fib1;
-    }
-
-    unsigned int nextForA(){
-        newFib = fib1 + fib2;
-        fib1 = fib2;
-        fib2 = newFib;
-
-        return newFib;
+    if(series < limit)
+        return true;
+    else{
+        cout<<"osiagnieto max serii="<<limit<<endl;
+        return false;
     }
 
-    unsigned int nextForB(){
-        return fib1;
+}
+
+
+void zmien_tasme(bool& whichTape) {
+    whichTape = !whichTape;
+    if(whichTape==A)
+        cout<< "zmieniono tasme na A"<<endl;
+    else
+        cout<< "zmieniono tasme na B"<<endl;
+}
+
+void zlicz_serie(bool tape, unsigned int& seriesOnTapeA, unsigned int& seriesOnTapeB, vector<Cone>& a,vector<Cone>& b) {
+
+    if(tape==A){
+        seriesOnTapeA++;
+        cout<< "zliczono " << seriesOnTapeA<<"/"<< fibonacciGenerator.limitForA() <<" serii na A, ostatni = "<<a.back().getVolume()<<endl;
+    }else if(tape==B){
+        seriesOnTapeB++;
+        cout<< "zliczono " << seriesOnTapeB <<"/"<< fibonacciGenerator.limitForA() <<" serii na B, ostatni = "<<b.back().getVolume()<<endl;
+    }
+}
+
+void kontynuuj_serie(bool tape, unsigned int& seriesOnTapeA, unsigned int& seriesOnTapeB) {
+    if(tape == A && seriesOnTapeA!=0){
+        cout<< "kontynuuje serie " << seriesOnTapeA <<" na tasmie A"<<endl;
+        seriesOnTapeA--;
+    }else if(tape==B && seriesOnTapeA!=1)
+    {
+        cout<< "kontynuuje serie " << seriesOnTapeB <<" na tasmie B"<<endl;
+        seriesOnTapeB--;
     }
 
-};
+
+}
 
 int main() {
     // BASIC DECLARATIONS
@@ -110,7 +195,6 @@ int main() {
     const string tape_INPUT_path = projectPath + "INPUT";
     const string tape_A_path = projectPath + "A";
     const string tape_B_path = projectPath + "B";
-    FibonacciGenerator fibonacciGenerator = FibonacciGenerator();
 
     // FILL TAPE
     generate_records(RECORDS_NUMBER, tape_INPUT_path);
@@ -130,86 +214,56 @@ int main() {
 
     bool toTapeA = true;                        // od ktorej tasmy zaczynamy
     std::vector<Cone>* bufferToPut = &A_Buffer; // wskaznik na tasme do ktorej mamy pisac
-    Cone last = Cone(INT_MIN, INT_MIN);         // udajemy ze na tasmie A cos jest
+    Cone ostatni = Cone(INT_MIN, INT_MIN);         // udajemy ze na tasmie A cos jest
     Cone lastOnA,lastOnB;
 
-    unsigned int fibOnA = 1,fibOnB = 1;
 
+    bool whichTape = A;
+    unsigned int fibOnA = 1,fibOnB = 1;
+    bool definitywnyKoniec=false;
 
     //napelnij bufor read
     while(tapeINPUT.read(reinterpret_cast<char *>(readBuffer.data()), sizeof(Cone) * BUFFER_SIZE)){
         //dla kazdego elementu w buforze
         for(int readBufferIndex = 0;readBufferIndex < BUFFER_SIZE; readBufferIndex++){
 
-            if(toTapeA && !A_Buffer.empty()){
-                last = A_Buffer.back();
-            }else if(!toTapeA && !B_Buffer.empty()){
-                last = B_Buffer.back();
-            }
 
-            if(last < readBuffer.at(readBufferIndex))
+            start:
+            ostatni = ostatni_z_biezacego_bufora(whichTape, A_Buffer,B_Buffer);
+            if(fib_pozwala(whichTape,seriesOnTapeA,seriesOnTapeB))
             {
-                //1.    zostajemy na tej samej tasmie
-                //1.1   wpisujemy na ta tasme
-                bufferToPut = (toTapeA) ? &A_Buffer : &B_Buffer;
-                bufferToPut->push_back(readBuffer.at(readBufferIndex));
-                //DEBUG
-                if(bufferToPut == &A_Buffer)
-                    cout<< "wpisuje " << readBuffer.at(readBufferIndex).getVolume()<<" do bufora A"<<endl;
-                else
-                    cout<< "wpisuje " <<readBuffer.at(readBufferIndex).getVolume()<<" do bufora B"<<endl;
-            }
-            else//ma sie zaczac nowa seria lub kontynuacja
-            {
-                //trzeba sprawdzic, czy mozemy zaczynac serie na drugiej tasmie, czy zostajemy
-                if(toTapeA){
-                    seriesOnTapeA++;
-                    if(seriesOnTapeA < fibonacciGenerator.limitForA()){//jesli mamy mniej serii niz powinno być
-                        bufferToPut = &A_Buffer;
-                        cout << "taśma A: limit -> " << fibonacciGenerator.limitForA()<<endl;
-
-                    }else{//jesli fibonacci nie pozwala juz wiecej wstawic, to zmieniamy tasme
-                        toTapeA = !toTapeA;
-                        bufferToPut = &B_Buffer;
-                        //DEBUG
-                        (toTapeA)?(cout<<"zamiana tasmy na A"<<endl):(cout<<"zamiana tasmy na B"<<endl);
-
-                        //zliczamy zakonczona lub kontynuowana serie
-                        if(!bufferToPut->empty() && bufferToPut->back() <= readBuffer.at(readBufferIndex))
-                            cout<< "kontynuuje serie " << seriesOnTapeB <<" na tasmie B"<<endl;
-                        else
-                            cout<< "zliczylem zakonczona serie " << seriesOnTapeA <<" na tasmie A"<<endl;
-
-                        fibonacciGenerator.nextForA();
-                    }
-                }else if(!toTapeA){
-                    seriesOnTapeB++;
-                    if (seriesOnTapeB < fibonacciGenerator.limitForB()){
-                        bufferToPut = &B_Buffer;
-                        cout << "taśma B: limit -> " << fibonacciGenerator.limitForB()<<endl;
-
-                    }else{
-                        toTapeA = !toTapeA;
-                        bufferToPut = &A_Buffer;
-                        //DEBUG
-                        (toTapeA)?(cout<<"zamiana tasmy na A"<<endl):(cout<<"zamiana tasmy na B"<<endl);
-
-                        //zliczamy zakonczona lub kontynuowana serie
-                        if(!bufferToPut->empty() && bufferToPut->back() <= readBuffer.at(readBufferIndex))
-                            cout<< "kontynuuje serie " << seriesOnTapeA <<" na tasmie A"<<endl;
-                        else
-                            cout<< "zliczylem zakonczona serie " << seriesOnTapeB <<" na tasmie B"<<endl;
-
-                        fibonacciGenerator.nextForB();
-                    }
+                if(ostatni <= readBuffer.at(readBufferIndex) || definitywnyKoniec)
+                {
+                    wstaw_do_bufora_tasmy(whichTape, A_Buffer, B_Buffer, readBuffer.at(readBufferIndex));
+                    definitywnyKoniec=false;
                 }
-
-                bufferToPut->push_back(readBuffer.at(readBufferIndex));
-                //DEBUG
-                if(bufferToPut == &A_Buffer)
-                    cout<< "wpisuje " << readBuffer.at(readBufferIndex).getVolume()<<" do bufora A"<<endl;
                 else
-                    cout<< "wpisuje " <<readBuffer.at(readBufferIndex).getVolume()<<" do bufora B"<<endl;
+                {
+                    definitywnyKoniec=true;
+                    zlicz_serie(whichTape,seriesOnTapeA,seriesOnTapeB,A_Buffer,B_Buffer);
+                    goto start;
+                }
+            } else
+            {
+
+                if(whichTape==A && seriesOnTapeA==fibonacciGenerator.limitForA())
+                    fibonacciGenerator.next();
+                else if(whichTape==B && seriesOnTapeB==fibonacciGenerator.limitForB())
+                    fibonacciGenerator.next();
+                zmien_tasme(whichTape);
+
+                ostatni = ostatni_z_biezacego_bufora(whichTape, A_Buffer,B_Buffer);
+                if(ostatni <= readBuffer.at(readBufferIndex))
+                {
+                    kontynuuj_serie(whichTape,seriesOnTapeA,seriesOnTapeB);
+                    wstaw_do_bufora_tasmy(whichTape, A_Buffer, B_Buffer, readBuffer.at(readBufferIndex));
+                }
+                else
+                {
+
+                    //zmien_tasme(whichTape);
+                    goto start;
+                }
             }
         }
     }
